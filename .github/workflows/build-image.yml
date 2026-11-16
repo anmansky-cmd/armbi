@@ -46,7 +46,7 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/armbian/build.git armbian-build
 
-      - name: 5. Копирование userpatches, слияние конфига ядра и настройка Ubuntu 26.10 (stonking)
+      - name: 5. Копирование userpatches, слияние конфига ядра и регистрация Ubuntu 26.10 (stonking)
         run: |
           mkdir -p armbian-build/userpatches/overlay
           cp -r custom-patches/userpatches/* armbian-build/userpatches/
@@ -63,18 +63,26 @@ jobs:
             sed -i 's/resolute/stonking/g' armbian-build/config/distributions/stonking/* 2>/dev/null || true
           fi
 
-          # Точечно добавляем stonking в case-блоки Ubuntu внутри lib/ (не ломая URL и строки)
-          grep -rl "resolute)" armbian-build/lib/ | xargs -r sed -i 's/resolute)/resolute|stonking)/g'
-          grep -rl "resolute|" armbian-build/lib/ | xargs -r sed -i 's/resolute|/resolute|stonking|/g'
-          grep -rl "|resolute" armbian-build/lib/ | xargs -r sed -i 's/|resolute/|resolute|stonking/g'
+          # Регистрируем stonking во всех списках и case-блоках Ubuntu в скриптах Armbian
+          for f in $(grep -rl "resolute" armbian-build/lib/ armbian-build/config/); do
+            # Пропускаем саму папку stonking и файлы патчей
+            if [[ "$f" != *"/stonking/"* && "$f" != *".patch" ]]; then
+              sed -i -E 's/\bresolute\b/resolute|stonking/g' "$f"
+              # Если resolute использовался в списке через пробел (в кавычках), заменяем разделитель | на пробел
+              sed -i -E 's/"([^"]*resolute)\|stonking([^"]*)"/"\1 stonking\2"/g' "$f"
+            fi
+          done
 
-          ls -laR armbian-build/userpatches/
+          # Проверяем, где прописан resolute, чтобы убедиться в корректности замены
+          grep -rn "stonking" armbian-build/lib/functions/main/config-prepare.sh armbian-build/lib/functions/general/apt-utils.sh || true
 
       - name: 6. Кэширование скомпилированных пакетов ядра (.deb)
         if: ${{ !github.event.inputs.clear_cache }}
         uses: actions/cache@v4
         with:
-          path: armbian-build/output/debs
+          path: |
+            armbian-build/output/debs
+            armbian-build/output/packages-hashed
           key: armbian-debs-nanopct6-uefi-${{ hashFiles('custom-patches/userpatches/linux-rockchip64-edge.config') }}
           restore-keys: |
             armbian-debs-nanopct6-uefi-

@@ -31,30 +31,36 @@ jobs:
         with:
           path: custom-patches
 
-      - name: 2. Очистка диска GitHub Runner (освобождение ~30 ГБ)
+      - name: 2. Регистрация QEMU binfmt_misc для сборки arm64
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: 3. Очистка диска GitHub Runner (освобождение ~30 ГБ)
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           sudo docker image prune --all --force || true
           df -h
 
-      - name: 3. Клонирование Armbian Build Framework
+      - name: 4. Клонирование Armbian Build Framework
         run: |
           git clone --depth=1 https://github.com/armbian/build.git armbian-build
 
-      - name: 4. Копирование userpatches и добавление конфигурации Ubuntu 26.10 (stonking)
+      - name: 5. Копирование userpatches и настройка дистрибутива stonking
         run: |
           mkdir -p armbian-build/userpatches/overlay
           cp -r custom-patches/userpatches/* armbian-build/userpatches/
           chmod +x armbian-build/userpatches/customize-image.sh
 
-          # Создаем конфигурацию дистрибутива stonking на базе resolute (Ubuntu 26.04)
+          # Создаем конфигурацию дистрибутива stonking (Ubuntu 26.10) на базе resolute (Ubuntu 26.04)
           if [ ! -d "armbian-build/config/distributions/stonking" ]; then
             cp -r armbian-build/config/distributions/resolute armbian-build/config/distributions/stonking
+            sed -i 's/resolute/stonking/g' armbian-build/config/distributions/stonking/* 2>/dev/null || true
           fi
 
           ls -laR armbian-build/userpatches/
 
-      - name: 5. Кэширование скомпилированных пакетов ядра (.deb)
+      - name: 6. Кэширование скомпилированных пакетов ядра (.deb)
         if: ${{ !github.event.inputs.clear_cache }}
         uses: actions/cache@v4
         with:
@@ -63,7 +69,7 @@ jobs:
           restore-keys: |
             armbian-debs-nanopct6-uefi-
 
-      - name: 6. Кэширование базового rootfs и исходников (cache/)
+      - name: 7. Кэширование базового rootfs и исходников (cache/)
         if: ${{ !github.event.inputs.clear_cache }}
         uses: actions/cache@v4
         with:
@@ -74,7 +80,7 @@ jobs:
           restore-keys: |
             armbian-cache-stonking-gnome-
 
-      - name: 7. Сборка чистого UEFI-образа Ubuntu 26.10 (без U-Boot)
+      - name: 8. Сборка чистого UEFI-образа Ubuntu 26.10 (без U-Boot)
         working-directory: armbian-build
         run: |
           COMPRESS_OPTS="sha"
@@ -100,13 +106,13 @@ jobs:
             CLEAN_LEVEL=make-kernel \
             COMPRESS_OUTPUTIMAGE="${COMPRESS_OPTS}"
 
-      - name: 8. Подготовка файлов для публикации
+      - name: 9. Подготовка файлов для публикации
         run: |
           mkdir -p release-assets
           mv armbian-build/output/images/* release-assets/
           ls -lh release-assets/
 
-      - name: 9. Публикация готового образа в GitHub Releases
+      - name: 10. Публикация готового образа в GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: nanopct6-uefi-ubuntu26.10-${{ github.run_number }}
@@ -118,3 +124,4 @@ jobs:
             - **Окружение:** GNOME 51 (Wayland)
             - **Медиастек:** FFmpeg (PR #20847) + mpv (`dmabuf-wayland` / `v4l2request`) + Chromium `.deb` (Wayland V4L2)
           files: release-assets/*
+

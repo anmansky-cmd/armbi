@@ -46,17 +46,24 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/armbian/build.git armbian-build
 
-      - name: 5. Копирование userpatches и настройка дистрибутива stonking
+      - name: 5. Копирование userpatches, слияние конфига ядра и настройка Ubuntu 26.10 (stonking)
         run: |
           mkdir -p armbian-build/userpatches/overlay
           cp -r custom-patches/userpatches/* armbian-build/userpatches/
           chmod +x armbian-build/userpatches/customize-image.sh
 
-          # Создаем конфигурацию дистрибутива stonking (Ubuntu 26.10) на базе resolute (Ubuntu 26.04)
+          # Объединяем полный базовый конфиг Armbian с пользовательскими опциями (сохраняем CONFIG_MODULES=y)
+          cp armbian-build/config/kernel/linux-rockchip64-edge.config armbian-build/userpatches/linux-rockchip64-edge.config
+          echo "" >> armbian-build/userpatches/linux-rockchip64-edge.config
+          cat custom-patches/userpatches/linux-rockchip64-edge.config >> armbian-build/userpatches/linux-rockchip64-edge.config
+
+          # Добавляем конфигурацию дистрибутива stonking (Ubuntu 26.10) на базе resolute (Ubuntu 26.04)
           if [ ! -d "armbian-build/config/distributions/stonking" ]; then
             cp -r armbian-build/config/distributions/resolute armbian-build/config/distributions/stonking
             sed -i 's/resolute/stonking/g' armbian-build/config/distributions/stonking/* 2>/dev/null || true
           fi
+          # Регистрируем stonking как релиз Ubuntu во внутренних скриптах Armbian
+          grep -rl "resolute" armbian-build/lib/ | xargs -r sed -i 's/resolute/resolute|stonking/g' 2>/dev/null || true
 
           ls -laR armbian-build/userpatches/
 
@@ -124,4 +131,3 @@ jobs:
             - **Окружение:** GNOME 51 (Wayland)
             - **Медиастек:** FFmpeg (PR #20847) + mpv (`dmabuf-wayland` / `v4l2request`) + Chromium `.deb` (Wayland V4L2)
           files: release-assets/*
-

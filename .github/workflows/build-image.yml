@@ -1,0 +1,108 @@
+name: Build Ubuntu 26.10 UEFI Image for NanoPC-T6
+
+on:
+  workflow_dispatch:
+    inputs:
+      compress_format:
+        description: 'Формат сжатия итогового образа'
+        required: true
+        default: 'xz'
+        type: choice
+        options:
+          - xz
+          - img
+      clear_cache:
+        description: 'Сбросить кэш ядра и rootfs (чистая сборка)'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build-nanopct6-uefi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: 1. Checkout пользовательских патчей и конфигов
+        uses: actions/checkout@v4
+        with:
+          path: custom-patches
+
+      - name: 2. Очистка диска GitHub Runner (освобождение ~30 ГБ)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force || true
+          df -h
+
+      - name: 3. Клонирование Armbian Build Framework
+        run: |
+          git clone --depth=1 https://github.com/armbian/build.git armbian-build
+
+      - name: 4. Копирование userpatches и проверка путей
+        run: |
+          mkdir -p armbian-build/userpatches/overlay
+          cp -r custom-patches/userpatches/* armbian-build/userpatches/
+          chmod +x armbian-build/userpatches/customize-image.sh
+          ls -laR armbian-build/userpatches/
+
+      - name: 5. Кэширование скомпилированных пакетов ядра (.deb)
+        if: ${{ !github.event.inputs.clear_cache }}
+        uses: actions/cache@v4
+        with:
+          path: armbian-build/output/debs
+          key: armbian-debs-nanopct6-uefi-${{ hashFiles('custom-patches/userpatches/linux-rockchip64-edge.config') }}
+          restore-keys: |
+            armbian-debs-nanopct6-uefi-
+
+      - name: 6. Кэширование базового rootfs и исходников (cache/)
+        if: ${{ !github.event.inputs.clear_cache }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            armbian-build/cache/rootfs
+            armbian-build/cache/sources
+          key: armbian-cache-stonking-gnome-${{ github.run_id }}
+          restore-keys: |
+            armbian-cache-stonking-gnome-
+
+      - name: 7. Сборка чистого UEFI-образа Ubuntu 26.10 (без U-Boot)
+        working-directory: armbian-build
+        run: |
+          ./compile.sh \
+            uefi-grub \
+            BOARD=nanopct6 \
+            BRANCH=edge \
+            RELEASE=stonking \
+            BUILD_MINIMAL=no \
+            BUILD_DESKTOP=yes \
+            DESKTOP_ENVIRONMENT=gnome \
+            DESKTOP_ENVIRONMENT_CONFIG_NAME=config_base \
+            KERNEL_CONFIGURE=no \
+            BOOTCONFIG=none \
+            UEFI_GRUB=yes \
+            UEFI_GRUB_TARGET=arm64-efi \
+            UEFI_GRUB_DISABLE_OS_PROBER=yes \
+            CLEAN_LEVEL=make-kernel \
+            COMPRESS_OUTPUTIMAGE=sha,${{ github.event.inputs.compress_format || 'xz' }}
+
+      - name: 8. Подготовка файлов для публикации
+        run: |
+          mkdir -p release-assets
+          mv armbian-build/output/images/* release-assets/
+          ls -lh release-assets/
+
+      - name: 9. Публикация готового образа в GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nanopct6-uefi-ubuntu26.10-${{ github.run_number }}
+          name: NanoPC-T6 UEFI + Ubuntu 26.10 (GNOME 51 + V4L2 Request) #${{ github.run_number }}
+          body: |
+            Чистый UEFI-образ **Ubuntu 26.10 Stonking Stingray** для **NanoPC-T6** (под загрузочный SPI EDK2 UEFI):
+            - **Загрузка:** GPT + ESP (FAT32) + GRUB2 EFI (`arm64-efi`) + Device Tree (без U-Boot)
+            - **Ядро:** Mainline Linux `edge` (7.x) с Panthor (Mali-G610) и VDPU381 / Hantro (V4L2 Request)
+            - **Окружение:** GNOME 51 (Wayland)
+            - **Медиастек:** FFmpeg (PR #20847) + mpv (`dmabuf-wayland` / `v4l2request`) + Chromium `.deb` (zero-copy V4L2)
+          files: release-assets/*

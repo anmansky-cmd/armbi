@@ -39,7 +39,7 @@ jobs:
 
       - name: 3. Клонирование Armbian Build Framework
         run: |
-          git clone --depth=1 https://github.com/armbian/build.git armbian-build
+          git clone --depth=1 https://github.com armbian-build
 
       - name: 4. Копирование userpatches и проверка путей
         run: |
@@ -53,7 +53,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: armbian-build/output/debs
-          key: armbian-debs-nanopct6-uefi-${{ hashFiles('custom-patches/userpatches/linux-rockchip64-edge.config') }}
+          key: armbian-debs-nanopct6-uefi-${{ hashFiles('custom-patches/userpatches/linux-rockchip-rk3588-edge.config') }}
           restore-keys: |
             armbian-debs-nanopct6-uefi-
 
@@ -71,10 +71,15 @@ jobs:
       - name: 7. Сборка чистого UEFI-образа Ubuntu 26.10 (без U-Boot)
         working-directory: armbian-build
         run: |
+          COMPRESS_OPTS="sha"
+          if [ "${{ github.event.inputs.compress_format }}" = "xz" ]; then
+            COMPRESS_OPTS="sha,xz"
+          fi
+
           ./compile.sh \
             BOARD=nanopct6 \
-            BRANCH=${{ github.event.inputs.branch }} \
-            RELEASE=${{ github.event.inputs.release }} \
+            BRANCH=edge \
+            RELEASE=stonking \
             BUILD_MINIMAL=no \
             BUILD_DESKTOP=yes \
             DESKTOP_ENVIRONMENT=gnome \
@@ -85,7 +90,7 @@ jobs:
             UEFI_GRUB_TARGET=arm64-efi \
             UEFI_GRUB_DISABLE_OS_PROBER=yes \
             CLEAN_LEVEL=make-kernel \
-            COMPRESS_OUTPUTIMAGE=sha,xz
+            COMPRESS_OUTPUTIMAGE="${COMPRESS_OPTS}"
 
       - name: 8. Подготовка файлов для публикации
         run: |
@@ -103,5 +108,5 @@ jobs:
             - **Загрузка:** GPT + ESP (FAT32) + GRUB2 EFI (`arm64-efi`) + Device Tree (без U-Boot)
             - **Ядро:** Mainline Linux `edge` (7.x) с Panthor (Mali-G610) и VDPU381 / Hantro (V4L2 Request)
             - **Окружение:** GNOME 51 (Wayland)
-            - **Медиастек:** FFmpeg (PR #20847) + mpv (`dmabuf-wayland` / `v4l2request`) + Chromium `.deb` (zero-copy V4L2)
+            - **Медиастек:** FFmpeg (PR #20847) + mpv (`dmabuf-wayland` / `v4l2request`) + Chromium `.deb` (Wayland V4L2)
           files: release-assets/*

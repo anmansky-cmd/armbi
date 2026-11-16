@@ -13,6 +13,7 @@ apt-get install -y --no-install-recommends \
     linux-libc-dev libdrm-dev libudev-dev libgbm-dev libegl-dev libgles-dev \
     libwayland-dev wayland-protocols libxkbcommon-dev \
     libplacebo-dev libass-dev libfreetype-dev libfribidi-dev libharfbuzz-dev \
+    libvulkan-dev glslang-tools spirv-tools libshaderc-dev liblcms2-dev libdovi-dev \
     libpulse-dev libpipewire-0.3-dev libasound2-dev \
     libgnutls28-dev libdav1d-dev libx264-dev libx265-dev libvpx-dev libopus-dev \
     linux-firmware v4l-utils mesa-utils
@@ -47,14 +48,24 @@ make -j$(nproc)
 make install
 ldconfig
 
-echo ">>> 4. Сборка mpv поверх собранных библиотек libav*..."
+echo ">>> 4. Сборка mpv (со встроенным subproject libplacebo) поверх собранных libav*..."
 cd /tmp
 git clone --depth=1 https://github.com/mpv-player/mpv.git mpv-src
-cd mpv-src
+mkdir -p /tmp/mpv-src/subprojects
+git clone --depth=1 --recursive https://code.videolan.org/videolan/libplacebo.git /tmp/mpv-src/subprojects/libplacebo
+
+cd /tmp/mpv-src
 PKG_CONFIG_PATH=/usr/local/lib/pkgconfig meson setup build \
     --prefix=/usr/local \
+    -Ddefault_library=static \
+    -Dlibplacebo:default_library=static \
+    -Dlibplacebo:vulkan=enabled \
+    -Dlibplacebo:opengl=enabled \
+    -Dlibplacebo:shaderc=enabled \
+    -Dlibplacebo:lcms=enabled \
     -Dwayland=enabled \
     -Degl-wayland=enabled \
+    -Dvulkan=enabled \
     -Ddrm=enabled \
     -Dgbm=enabled \
     -Dpipewire=enabled \

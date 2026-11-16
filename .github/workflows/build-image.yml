@@ -72,21 +72,20 @@ jobs:
         working-directory: armbian-build
         run: |
           ./compile.sh \
-            uefi-grub \
             BOARD=nanopct6 \
-            BRANCH=edge \
-            RELEASE=stonking \
+            BRANCH=${{ github.event.inputs.branch }} \
+            RELEASE=${{ github.event.inputs.release }} \
             BUILD_MINIMAL=no \
             BUILD_DESKTOP=yes \
             DESKTOP_ENVIRONMENT=gnome \
             DESKTOP_ENVIRONMENT_CONFIG_NAME=config_base \
             KERNEL_CONFIGURE=no \
             BOOTCONFIG=none \
-            UEFI_GRUB=yes \
+            ENABLE_EXTENSIONS=grub \
             UEFI_GRUB_TARGET=arm64-efi \
             UEFI_GRUB_DISABLE_OS_PROBER=yes \
             CLEAN_LEVEL=make-kernel \
-            COMPRESS_OUTPUTIMAGE=sha,${{ github.event.inputs.compress_format || 'xz' }}
+            COMPRESS_OUTPUTIMAGE=sha,xz
 
       - name: 8. Подготовка файлов для публикации
         run: |

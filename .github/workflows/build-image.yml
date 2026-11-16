@@ -62,8 +62,11 @@ jobs:
             cp -r armbian-build/config/distributions/resolute armbian-build/config/distributions/stonking
             sed -i 's/resolute/stonking/g' armbian-build/config/distributions/stonking/* 2>/dev/null || true
           fi
-          # Регистрируем stonking как релиз Ubuntu во внутренних скриптах Armbian
-          grep -rl "resolute" armbian-build/lib/ | xargs -r sed -i 's/resolute/resolute|stonking/g' 2>/dev/null || true
+
+          # Точечно добавляем stonking в case-блоки Ubuntu внутри lib/ (не ломая URL и строки)
+          grep -rl "resolute)" armbian-build/lib/ | xargs -r sed -i 's/resolute)/resolute|stonking)/g'
+          grep -rl "resolute|" armbian-build/lib/ | xargs -r sed -i 's/resolute|/resolute|stonking|/g'
+          grep -rl "|resolute" armbian-build/lib/ | xargs -r sed -i 's/|resolute/|resolute|stonking/g'
 
           ls -laR armbian-build/userpatches/
 

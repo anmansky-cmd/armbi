@@ -39,7 +39,7 @@ jobs:
 
       - name: 3. Клонирование Armbian Build Framework
         run: |
-          git clone --depth=1 https://github.com armbian-build
+          git clone --depth=1  https://github.com/armbian/build.git armbian-build
 
       - name: 4. Копирование userpatches и проверка путей
         run: |

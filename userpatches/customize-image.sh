@@ -8,6 +8,11 @@ BUILD_DESKTOP=$4
 
 echo ">>> 1. Установка зависимостей сборки, ядра, Mesa (Panfrost/PanVK) и прошивок..."
 export DEBIAN_FRONTEND=noninteractive
+echo ">>> 0. Обновление репозиториев с resolute (26.04) на stonking (26.10)..."
+export DEBIAN_FRONTEND=noninteractive
+sed -i 's/resolute/stonking/g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+apt-get update
+apt-get dist-upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 apt-get update
 apt-get install -y --no-install-recommends \
     build-essential git ca-certificates curl gpg pkg-config meson ninja-build yasm nasm \

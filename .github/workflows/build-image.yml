@@ -41,11 +41,17 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/armbian/build.git armbian-build
 
-      - name: 4. Копирование userpatches и проверка путей
+      - name: 4. Копирование userpatches и добавление конфигурации Ubuntu 26.10 (stonking)
         run: |
           mkdir -p armbian-build/userpatches/overlay
           cp -r custom-patches/userpatches/* armbian-build/userpatches/
           chmod +x armbian-build/userpatches/customize-image.sh
+
+          # Создаем конфигурацию дистрибутива stonking на базе resolute (Ubuntu 26.04)
+          if [ ! -d "armbian-build/config/distributions/stonking" ]; then
+            cp -r armbian-build/config/distributions/resolute armbian-build/config/distributions/stonking
+          fi
+
           ls -laR armbian-build/userpatches/
 
       - name: 5. Кэширование скомпилированных пакетов ядра (.deb)

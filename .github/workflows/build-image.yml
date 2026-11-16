@@ -39,7 +39,7 @@ jobs:
 
       - name: 3. Клонирование Armbian Build Framework
         run: |
-          git clone --depth=1  https://github.com/armbian/build.git armbian-build
+          git clone --depth=1 https://github.com/armbian/build.git armbian-build
 
       - name: 4. Копирование userpatches и проверка путей
         run: |
@@ -53,7 +53,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: armbian-build/output/debs
-          key: armbian-debs-nanopct6-uefi-${{ hashFiles('custom-patches/userpatches/linux-rockchip-rk3588-edge.config') }}
+          key: armbian-debs-nanopct6-uefi-${{ hashFiles('custom-patches/userpatches/linux-rockchip64-edge.config') }}
           restore-keys: |
             armbian-debs-nanopct6-uefi-
 
@@ -84,6 +84,8 @@ jobs:
             BUILD_DESKTOP=yes \
             DESKTOP_ENVIRONMENT=gnome \
             DESKTOP_ENVIRONMENT_CONFIG_NAME=config_base \
+            DESKTOP_TIER=minimal \
+            DESKTOP_APPGROUPS_SELECTED="" \
             KERNEL_CONFIGURE=no \
             BOOTCONFIG=none \
             ENABLE_EXTENSIONS=grub \
@@ -106,7 +108,7 @@ jobs:
           body: |
             Чистый UEFI-образ **Ubuntu 26.10 Stonking Stingray** для **NanoPC-T6** (под загрузочный SPI EDK2 UEFI):
             - **Загрузка:** GPT + ESP (FAT32) + GRUB2 EFI (`arm64-efi`) + Device Tree (без U-Boot)
-            - **Ядро:** Mainline Linux `edge` (7.x) с Panthor (Mali-G610) и VDPU381 / Hantro (V4L2 Request)
+            - **Ядро:** Mainline Linux `edge` (7.3) с Panthor (Mali-G610) и VDPU381 / Hantro (V4L2 Request)
             - **Окружение:** GNOME 51 (Wayland)
             - **Медиастек:** FFmpeg (PR #20847) + mpv (`dmabuf-wayland` / `v4l2request`) + Chromium `.deb` (Wayland V4L2)
           files: release-assets/*

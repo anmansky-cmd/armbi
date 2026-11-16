@@ -56,9 +56,9 @@ ldconfig
 
 echo ">>> 4. Сборка mpv (со встроенным subproject libplacebo) поверх собранных libav*..."
 cd /tmp
-git clone --depth=1 https://github.com mpv-src
+git clone --depth=1 https://github.com/mpv-player/mpv.git mpv-src
 mkdir -p /tmp/mpv-src/subprojects
-git clone --depth=1 --recursive https://videolan.org /tmp/mpv-src/subprojects/libplacebo
+git clone --depth=1 --recursive --shallow-submodules https://videolan.org /tmp/mpv-src/subprojects/libplacebo
 
 cd /tmp/mpv-src
 PKG_CONFIG_PATH=/usr/local/lib/pkgconfig meson setup build \
